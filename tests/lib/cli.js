@@ -31,7 +31,7 @@ const proxyquire = require("proxyquire").noCallThru().noPreserveCache();
 
 describe("cli", () => {
 
-    let fixtureDir;
+    let fixtureDir, currentDir;
     const log = {
         info: sinon.spy(),
         error: sinon.spy()
@@ -79,13 +79,20 @@ describe("cli", () => {
     // copy into clean area so as not to get "infected" by this project's .eslintrc files
     before(() => {
         fixtureDir = `${os.tmpdir()}/eslint/fixtures`;
+        currentDir = sh.pwd();
+
         sh.mkdir("-p", fixtureDir);
         sh.cp("-r", "./tests/fixtures/.", fixtureDir);
+    });
+
+    beforeEach(() => {
+        sh.cd(fixtureDir);
     });
 
     afterEach(() => {
         log.info.reset();
         log.error.reset();
+        sh.cd(currentDir);
     });
 
     after(() => {
@@ -133,16 +140,14 @@ describe("cli", () => {
     });
 
     describe("when there is a local config file", () => {
-        const code = "lib/cli.js";
-
         it("should load the local config file", () => {
+            const fixturePath = getFixturePath("configurations", "single-quotes");
 
-            // Mock CWD
-            process.eslintCwd = getFixturePath("configurations", "single-quotes");
+            sh.cd(fixturePath);
 
-            cli.execute(code);
+            const result = cli.execute("./quotes.js");
 
-            process.eslintCwd = null;
+            assert.strictEqual(result, 1);
         });
     });
 
@@ -454,7 +459,9 @@ describe("cli", () => {
                 getFixturePath("globals-node.js")
             ];
 
-            cli.execute(`--no-eslintrc --config ./conf/eslint-recommended.js --no-ignore ${files.join(" ")}`);
+            const configFile = getFixturePath("eslint-recommended.js");
+
+            cli.execute(`--no-eslintrc --config ${configFile} --no-ignore ${files.join(" ")}`);
 
             assert.strictEqual(log.info.args[0][0].split("\n").length, 11);
         });
